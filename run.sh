@@ -26,7 +26,7 @@ debug_log() {
     local message="[DEBUG] $1"
     echo "$message"
     if [ -n "$DEBUG_FILE" ]; then
-      echo "$message" >> "$DEBUG_FILE"
+      echo "$message" >>"$DEBUG_FILE"
     fi
   fi
 }
@@ -37,7 +37,7 @@ test_debug_log() {
     local message="[TEST-DEBUG] $1"
     echo "$message"
     if [ -n "$DEBUG_FILE" ]; then
-      echo "$message" >> "$DEBUG_FILE"
+      echo "$message" >>"$DEBUG_FILE"
     fi
   fi
 }
@@ -81,21 +81,21 @@ end_test_timer() {
 print_timing_summary() {
   if [ "$DEBUG" = true ]; then
     local output_lines=()
-    
+
     # Build the output lines
     output_lines+=("")
     output_lines+=("=== TIMING SUMMARY ===")
     local total_time=$(awk "BEGIN {printf \"%.2f\", $(date +%s.%N) - $SCRIPT_START_TIME}")
     output_lines+=("Total script time: ${total_time}s")
     output_lines+=("")
-    
+
     # Sort the timing entries for consistent output
     local sorted_keys=($(printf '%s\n' "${!STEP_TIMES[@]}" | grep '_duration$' | sort))
-    
+
     for key in "${sorted_keys[@]}"; do
       local step_name="${key%_duration}"
       local duration="${STEP_TIMES[$key]}"
-      
+
       # Show test-specific timings only if PROFILE_TEST is enabled
       if [[ "$step_name" == *"opcodes_warmup_"* || "$step_name" == *"test_run_"* ]]; then
         if [ "$PROFILE_TEST" = true ]; then
@@ -107,13 +107,13 @@ print_timing_summary() {
     done
     output_lines+=("=======================")
     output_lines+=("")
-    
+
     # Print to stdout
     printf '%s\n' "${output_lines[@]}"
-    
+
     # Save to file if specified
     if [ -n "$DEBUG_FILE" ]; then
-      printf '%s\n' "${output_lines[@]}" >> "$DEBUG_FILE"
+      printf '%s\n' "${output_lines[@]}" >>"$DEBUG_FILE"
     fi
   fi
 }
@@ -121,7 +121,7 @@ print_timing_summary() {
 # Function to initialize executions.json if it doesn't exist
 init_executions_file() {
   if [ ! -f "$EXECUTIONS_FILE" ]; then
-    echo "{}" > "$EXECUTIONS_FILE"
+    echo "{}" >"$EXECUTIONS_FILE"
     echo "Created $EXECUTIONS_FILE"
   fi
 }
@@ -140,27 +140,32 @@ update_execution_time() {
   local client=$1
   local timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   local temp_file=$(mktemp)
-  jq --arg client "$client" --arg timestamp "$timestamp" '.[$client] = $timestamp' "$EXECUTIONS_FILE" > "$temp_file" && mv "$temp_file" "$EXECUTIONS_FILE"
+  jq --arg client "$client" --arg timestamp "$timestamp" '.[$client] = $timestamp' "$EXECUTIONS_FILE" >"$temp_file" && mv "$temp_file" "$EXECUTIONS_FILE"
   echo "Updated execution time for $client: $timestamp"
 }
 
 # Parse command line arguments
 while getopts "T:t:g:w:c:r:i:o:f:" opt; do
   case $opt in
-    T) TEST_PATHS_JSON="$OPTARG" ;;
-    t) LEGACY_TEST_PATH="$OPTARG" ;;
-    g) LEGACY_GENESIS_PATH="$OPTARG" ;;
-    w) WARMUP_FILE="$OPTARG" ;;
-    c) CLIENTS="$OPTARG" ;;
-    r) RUNS="$OPTARG" ;;
-    i) IMAGES="$OPTARG" ;;
-    o) OPCODES_WARMUP_COUNT="$OPTARG" ;;
-    f) FILTER="$OPTARG" ;;  # comma-separated exclude patterns
-    d) DEBUG=true ;;
-    D) DEBUG=true; DEBUG_FILE="$OPTARG" ;;
-    p) PROFILE_TEST=true ;;
-    *) echo "Usage: $0 [-t test_path] [-w warmup_file] [-c clients] [-r runs] [-i images] [-o opcodesWarmupCount] [-f filter] [-d debug] [-D debug_file] [-p profile_test]" >&2
-       exit 1 ;;
+  T) TEST_PATHS_JSON="$OPTARG" ;;
+  t) LEGACY_TEST_PATH="$OPTARG" ;;
+  g) LEGACY_GENESIS_PATH="$OPTARG" ;;
+  w) WARMUP_FILE="$OPTARG" ;;
+  c) CLIENTS="$OPTARG" ;;
+  r) RUNS="$OPTARG" ;;
+  i) IMAGES="$OPTARG" ;;
+  o) OPCODES_WARMUP_COUNT="$OPTARG" ;;
+  f) FILTER="$OPTARG" ;; # comma-separated exclude patterns
+  d) DEBUG=true ;;
+  D)
+    DEBUG=true
+    DEBUG_FILE="$OPTARG"
+    ;;
+  p) PROFILE_TEST=true ;;
+  *)
+    echo "Usage: $0 [-t test_path] [-w warmup_file] [-c clients] [-r runs] [-i images] [-o opcodesWarmupCount] [-f filter] [-d debug] [-D debug_file] [-p profile_test]" >&2
+    exit 1
+    ;;
   esac
 done
 
@@ -190,8 +195,8 @@ for i in $(seq 0 $((count - 1))); do
   GENESIS_PATHS+=("$genesis")
 done
 
-IFS=',' read -ra CLIENT_ARRAY <<< "$CLIENTS"
-IFS=',' read -ra FILTERS <<< "$FILTER"
+IFS=',' read -ra CLIENT_ARRAY <<<"$CLIENTS"
+IFS=',' read -ra FILTERS <<<"$FILTER"
 
 mkdir -p results warmupresults logs
 
@@ -200,13 +205,13 @@ if [ -n "$DEBUG_FILE" ]; then
   # Find next available filename to avoid overwriting
   original_debug_file="$DEBUG_FILE"
   counter=0
-  
+
   while [ -f "$DEBUG_FILE" ]; do
     counter=$((counter + 1))
     # Extract filename and extension
     filename="${original_debug_file%.*}"
     extension="${original_debug_file##*.}"
-    
+
     # Handle files without extension
     if [ "$filename" = "$extension" ]; then
       DEBUG_FILE="${original_debug_file}.${counter}"
@@ -214,13 +219,13 @@ if [ -n "$DEBUG_FILE" ]; then
       DEBUG_FILE="${filename}.${counter}.${extension}"
     fi
   done
-  
+
   # Create debug file with timestamp header
-  echo "=== DEBUG LOG STARTED: $(date) ===" > "$DEBUG_FILE"
-  echo "Script: $0" >> "$DEBUG_FILE"
-  echo "Args: $*" >> "$DEBUG_FILE"
-  echo "=======================================" >> "$DEBUG_FILE"
-  
+  echo "=== DEBUG LOG STARTED: $(date) ===" >"$DEBUG_FILE"
+  echo "Script: $0" >>"$DEBUG_FILE"
+  echo "Args: $*" >>"$DEBUG_FILE"
+  echo "=======================================" >>"$DEBUG_FILE"
+
   # Notify user about the actual filename used
   if [ "$DEBUG_FILE" != "$original_debug_file" ]; then
     echo "Debug file '$original_debug_file' already exists, using '$DEBUG_FILE' instead"
@@ -268,7 +273,7 @@ for run in $(seq 1 $RUNS); do
   debug_log "Starting run $run/$RUNS"
   for client in "${CLIENT_ARRAY[@]}"; do
     debug_log "Processing client: $client"
-    
+
     # Skip nimbus if already run today
     if [ "$client" = "nimbus" ] && was_executed_today "$client"; then
       echo "Skipping $client - already executed today"
@@ -277,7 +282,7 @@ for run in $(seq 1 $RUNS); do
 
     raw_genesis="${TEST_TO_GENESIS[$i]}"
     cl_name=$(echo "$client" | cut -d '_' -f 1)
-    
+
     if [ -n "$raw_genesis" ]; then
       # Use client name, but map non-besu/nethermind clients to geth
       if [ "$cl_name" != "besu" ] && [ "$cl_name" != "nethermind" ]; then
@@ -297,7 +302,7 @@ for run in $(seq 1 $RUNS); do
       python3 setup_node.py --client "$client" --imageBulk "$IMAGES"
     fi
 
-    python3 -c "from utils import print_computer_specs; print(print_computer_specs())" > results/computer_specs.txt
+    python3 -c "from utils import print_computer_specs; print(print_computer_specs())" >results/computer_specs.txt
     cat results/computer_specs.txt
 
     warmed=false
@@ -318,17 +323,17 @@ for run in $(seq 1 $RUNS); do
 
       if [ -n "$FILTER" ]; then
         match=false
-        filename_lc="${filename,,}"  # Convert filename to lowercase once
-      
+        filename_lc="${filename,,}" # Convert filename to lowercase once
+
         for pat in "${FILTERS[@]}"; do
-          pat_lc="${pat,,}"  # Convert filter pattern to lowercase
-      
+          pat_lc="${pat,,}" # Convert filter pattern to lowercase
+
           if [[ "$filename_lc" == *"$pat_lc"* ]]; then
             match=true
             break
           fi
         done
-      
+
         if [ "$match" != true ]; then
           echo "Skipping $filename (does not match case-insensitive filter)"
           continue
@@ -336,13 +341,13 @@ for run in $(seq 1 $RUNS); do
       fi
 
       base_prefix="${filename%-gas-value_*}"
-      warmup_candidates=( "$WARMUP_OPCODES_PATH"/"$base_prefix"-gas-value_*.txt )
+      warmup_candidates=("$WARMUP_OPCODES_PATH"/"$base_prefix"-gas-value_*.txt)
       warmup_path="${warmup_candidates[0]}"
 
-      if (( OPCODES_WARMUP_COUNT > 0 )); then
+      if ((OPCODES_WARMUP_COUNT > 0)); then
         start_test_timer "opcodes_warmup_${client}_${filename}"
         current_count="${warmup_run_counts[$warmup_path]:-0}"
-        if (( current_count >= OPCODES_WARMUP_COUNT )); then
+        if ((current_count >= OPCODES_WARMUP_COUNT)); then
           echo ""
         else
           for warmup_count in $(seq 1 $OPCODES_WARMUP_COUNT); do
@@ -365,12 +370,12 @@ for run in $(seq 1 $RUNS); do
     # Collect logs & teardown
     start_timer "teardown_${client}"
     ts=$(date +%s)
-    docker logs gas-execution-client &> logs/docker_${client}_${ts}.log
-    docker logs gas-execution-client-sync &> logs/docker_sync_${client}_${ts}.log
+    docker logs gas-execution-client &>logs/docker_${client}_${ts}.log
+    docker logs gas-execution-client-sync &>logs/docker_sync_${client}_${ts}.log
     cl_name=$(echo "$client" | cut -d '_' -f 1)
     cd "scripts/$cl_name"
     docker compose down
-    rm -rf execution-data
+    sudo rm -rf execution-data
     cd - >/dev/null
     end_timer "teardown_${client}"
 
@@ -383,10 +388,10 @@ end_timer "benchmarks_total"
 start_timer "results_processing"
 if [ -z "$IMAGES" ]; then
   python3 report_tables.py --resultsPath results --clients "$CLIENTS" --testsPath "${TEST_PATHS[0]}" --runs "$RUNS"
-  python3 report_html.py   --resultsPath results --clients "$CLIENTS" --testsPath "${TEST_PATHS[0]}" --runs "$RUNS"
+  python3 report_html.py --resultsPath results --clients "$CLIENTS" --testsPath "${TEST_PATHS[0]}" --runs "$RUNS"
 else
   python3 report_tables.py --resultsPath results --clients "$CLIENTS" --testsPath "${TEST_PATHS[0]}" --runs "$RUNS" --images "$IMAGES"
-  python3 report_html.py   --resultsPath results --clients "$CLIENTS" --testsPath "${TEST_PATHS[0]}" --runs "$RUNS" --images "$IMAGES"
+  python3 report_html.py --resultsPath results --clients "$CLIENTS" --testsPath "${TEST_PATHS[0]}" --runs "$RUNS" --images "$IMAGES"
 fi
 end_timer "results_processing"
 
