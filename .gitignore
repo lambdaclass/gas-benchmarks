@@ -28,3 +28,4 @@ venv/
 nohup.out
 
 executions.json
+*.zip

@@ -14,7 +14,7 @@ def get_html_report(client_results, clients, results_paths, test_cases, methods,
         text = file.read()
         computer_spec = text
 
-    results_to_print = ('<!DOCTYPE html\>' +
+    results_to_print = ('<!DOCTYPE html>' +
                         '<html lang="en">' +
                         '<head>' +
                         '    <meta charset=\"UTF-8\">' +
@@ -63,7 +63,7 @@ def get_html_report(client_results, clients, results_paths, test_cases, methods,
             image_to_print = el_images[client_without_tag]
         results_to_print += f'<h1>{client.capitalize()} - {image_to_print} - Benchmarking Report</h1>' + '\n'
         results_to_print += f'<table id="table_{client}">'
-        results_to_print += ('<thread>\n'
+        results_to_print += ('<thead>\n'
                              '<tr>\n'
                              f'<th class=\"title\" onclick="sortTable(0, \'table_{client}\', false)" style="cursor: pointer;">Title &uarr; &darr;</th>\n'
                              f'<th onclick="sortTable(1, \'table_{client}\', true)" style="cursor: pointer;">Max (MGas/s) &uarr; &darr;</th>\n'
@@ -75,7 +75,7 @@ def get_html_report(client_results, clients, results_paths, test_cases, methods,
                              '<th class=\"title\">Description</th>\n'
                              '<th>Start Time</th>\n'
                              '</tr>\n'
-                             '</thread>\n'
+                             '</thead>\n'
                              '<tbody>\n')
         gas_table_norm = utils.get_gas_table(client_results, client, test_cases, gas_set, methods[0], metadata)
         csv_table[client] = gas_table_norm
@@ -90,59 +90,43 @@ def get_html_report(client_results, clients, results_paths, test_cases, methods,
                                  f'<td style="text-align:left;" >{data[7]}</td>\n'
                                  f'<td>{data[8]}</td>\n</tr>\n')
         results_to_print += '\n'
-        results_to_print += ('</table>\n'
-                             '</tbody>\n')
+        results_to_print += ('</tbody>\n'
+                             '</table>\n')
 
     results_to_print += ('    <script>'
+                         'var sortDirection = {};'
                          'function sortTable(n, table_name, nm) {'
-                         '  var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;'
-                         '  table = document.getElementById(table_name);'
-                         '  switching = true;'
-                         '  dir = "asc";'
-                         '  while (switching) {'
-                         '    switching = false;'
-                         '    rows = table.rows;'
-                         '    for (i = 1; i < (rows.length - 1); i++) {'
-                         '      shouldSwitch = false;'
-                         '      x = rows[i].getElementsByTagName("TD")[n];'
-                         '      y = rows[i + 1].getElementsByTagName("TD")[n];'
-                         '      if (dir == "asc") {'
-                         '        if (nm) {'
-                         '          if (Number(x.innerHTML) > Number(y.innerHTML)) {'
-                         '            shouldSwitch = true;'
-                         '            break;'
-                         '          }'
-                         '        } else {'
-                         '          if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {'
-                         '            shouldSwitch = true;'
-                         '            break;'
-                         '          }'
-                         '        }'
-                         '      } else if (dir == "desc") {'
-                         '        if (nm) {'
-                         '          if (Number(x.innerHTML) < Number(y.innerHTML)) {'
-                         '            shouldSwitch = true;'
-                         '            break;'
-                         '          }'
-                         '        } else {'
-                         '          if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {'
-                         '            shouldSwitch = true;'
-                         '            break;'
-                         '          }'
-                         '        }'
-                         '      }'
-                         '    }'
-                         '    if (shouldSwitch) {'
-                         '      rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);'
-                         '      switching = true;'
-                         '      switchcount ++;'
+                         '  var table = document.getElementById(table_name);'
+                         '  var tbody = table.tBodies[0];'
+                         '  var rows = Array.from(tbody.rows);'
+                         '  '
+                         '  var currentDir = sortDirection[table_name + "_" + n] || "asc";'
+                         '  var newDir = currentDir === "asc" ? "desc" : "asc";'
+                         '  sortDirection[table_name + "_" + n] = newDir;'
+                         '  '
+                         '  rows.sort(function(a, b) {'
+                         '    var x = a.getElementsByTagName("TD")[n].innerHTML;'
+                         '    var y = b.getElementsByTagName("TD")[n].innerHTML;'
+                         '    '
+                         '    var valX, valY;'
+                         '    if (nm) {'
+                         '      valX = parseFloat(x) || 0;'
+                         '      valY = parseFloat(y) || 0;'
                          '    } else {'
-                         '      if (switchcount == 0 && dir == "asc") {'
-                         '        dir = "desc";'
-                         '        switching = true;'
-                         '      }'
+                         '      valX = x.toLowerCase();'
+                         '      valY = y.toLowerCase();'
                          '    }'
-                         '  }'
+                         '    '
+                         '    if (newDir === "asc") {'
+                         '      return valX > valY ? 1 : valX < valY ? -1 : 0;'
+                         '    } else {'
+                         '      return valX < valY ? 1 : valX > valY ? -1 : 0;'
+                         '    }'
+                         '  });'
+                         '  '
+                         '  rows.forEach(function(row) {'
+                         '    tbody.appendChild(row);'
+                         '  });'
                          '}'
                          '</script>'
                          '</body>'
@@ -150,7 +134,6 @@ def get_html_report(client_results, clients, results_paths, test_cases, methods,
 
     soup = BeautifulSoup(results_to_print, 'lxml')
     formatted_html = soup.prettify()
-    print(formatted_html)
     if not os.path.exists('reports'):
         os.mkdir('reports')
     with open(f'reports/index.html', 'w') as file:
@@ -187,12 +170,6 @@ def main():
     tests_path = args.testsPath
     runs = args.runs
     images = args.images
-
-    # Get the computer spec
-    with open(os.path.join(results_paths, 'computer_specs.txt'), 'r') as file:
-        text = file.read()
-        computer_spec = text
-    print(computer_spec)
 
     client_results = {}
     failed_tests = {}
