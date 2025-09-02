@@ -17,84 +17,84 @@ def parse_test_title(full_title):
     """
     if not full_title or len(full_title) < 50:
         return full_title, full_title
-    
+
     parts = []
-    
+
     # Extract test category from filename
     category_match = re.search(r'test_worst_([^\.]+)\.py', full_title)
     if category_match:
         category = category_match.group(1).replace('_', ' ').title()
         parts.append(category)
-    
+
     # Extract test function name
     test_match = re.search(r'__test_worst_([^[]+)', full_title)
     if test_match:
         test_name = test_match.group(1).replace('_', ' ').title()
         parts.append(test_name)
-    
+
     # Extract opcode information
     opcode_match = re.search(r'opcode_([A-Z0-9]+)', full_title)
     if opcode_match:
         parts.append(f"Op: {opcode_match.group(1)}")
-    
+
     # Extract specific modexp parameters
     modexp_param_match = re.search(r'mod_([a-z0-9_]+)', full_title)
     if modexp_param_match:
         param = modexp_param_match.group(1).replace('_', ' ').title()
         parts.append(f"Mod: {param}")
-    
-    # Extract data sizes (improved pattern)
+
+    # Extract data sizes
     size_matches = re.findall(r'(\d+(?:\.\d+)?[x]?\s*(?:KiB|MiB|bytes?)|(?:0\.\d+x\s*)?max code size|\d+\s+bytes)', full_title)
     if size_matches:
         parts.append(size_matches[0])
-    
+
     # Extract key parameters for memory/access tests
     key_params = []
-    
+
     # Memory expansion
     if 'big_memory_expansion_True' in full_title:
         key_params.append('Big Mem')
     elif 'big_memory_expansion_False' in full_title:
         key_params.append('No Big Mem')
-    
+
     # Fixed parameters
     if 'fixed_src_dst_True' in full_title:
         key_params.append('Fixed Src/Dst')
     elif 'fixed_src_dst_False' in full_title:
         key_params.append('Var Src/Dst')
-        
+
     if 'fixed_offset_True' in full_title:
         key_params.append('Fixed Offset')
     elif 'fixed_offset_False' in full_title:
         key_params.append('Var Offset')
-    
+
     # Data types
     if 'non_zero_data_True' in full_title:
         key_params.append('Non-Zero Data')
     elif 'non_zero_data_False' in full_title:
         key_params.append('Zero Data')
-        
+
     # Zero byte parameter
     if 'zero_byte_True' in full_title:
         key_params.append('Zero Byte')
     elif 'zero_byte_False' in full_title:
         key_params.append('Non-Zero Byte')
-    
+
     # Case IDs for transfers
     case_match = re.search(r'case_id_([^-\]]+)', full_title)
     if case_match:
         case_id = case_match.group(1).replace('_', ' ').title()
         key_params.append(case_id)
-    
+
     # Add key params if we have them and space
     if key_params and len(parts) < 4:
         parts.append(" | ".join(key_params[:2]))  # Limit to 2 key params
-    
+
     # Extract fork (lower priority now)
     fork_match = re.search(r'fork_([^-]+)', full_title)
     if fork_match and len(parts) < 4:  # Only add if we have space
         parts.append(fork_match.group(1))
-    
+
     # Extract memory size parameters
     mem_size_match = re.search(r'mem_size_(\d+)', full_title)
     if mem_size_match and len(parts) < 4:
@@ -103,14 +103,14 @@ def parse_test_title(full_title):
             key_params.append('Mem Size: 0')
         else:
             key_params.append(f'Mem Size: {size}')
-    
+
     # Extract mod operation types with bits
     mod_op_match = re.search(r'op_(MOD|SMOD|ADDMOD|MULMOD)-mod_bits_(\d+)', full_title)
     if mod_op_match and len(parts) < 4:
         op_type = mod_op_match.group(1)
         bits = mod_op_match.group(2)
         parts.append(f"{op_type} {bits}b")
-    
+
     # Extract BLS12/BN128 precompile types
     precompile_match = re.search(r'(bn128|bls12)_([a-z0-9_]+)', full_title)
     if precompile_match and len(parts) < 4:
@@ -118,37 +118,37 @@ def parse_test_title(full_title):
         operation = precompile_match.group(2).replace('_', ' ').title()
         if len(operation) < 15:  # Keep it short
             parts.append(f"{crypto_type}: {operation}")
-    
+
     # Extract blobhash parameters
     if 'no blobs' in full_title and len(parts) < 4:
         key_params.append('No Blobs')
     elif 'one blob and accessed' in full_title and len(parts) < 4:
         key_params.append('One Blob')
-    
+
     # Extract calldataload loop types
     if 'one-loop' in full_title and len(parts) < 4:
         key_params.append('One Loop')
     elif 'zero-loop' in full_title and len(parts) < 4:
         key_params.append('Zero Loop')
-    
+
     # Extract return data styles
     if 'ReturnDataStyle.IDENTITY' in full_title and len(parts) < 4:
         key_params.append('Identity Style')
     elif 'ReturnDataStyle.RETURN' in full_title and len(parts) < 4:
         key_params.append('Return Style')
-    
+
     # Extract call types
     if full_title.endswith('-call]-gas-value') and len(parts) < 4:
         key_params.append('Call')
     elif full_title.endswith('-transaction]-gas-value') and len(parts) < 4:
         key_params.append('Transaction')
-    
+
     # Extract value parameters
     if 'from_origin_True' in full_title and 'non_zero_value_True' in full_title and len(parts) < 4:
         key_params.append('Origin + Value')
     elif 'from_origin_False' in full_title and 'non_zero_value_True' in full_title and len(parts) < 4:
         key_params.append('Non-Origin + Value')
-    
+
     # Extract offset information for memory access
     offset_match = re.search(r'offset_(\d+)', full_title)
     if offset_match and len(parts) < 4:
@@ -159,24 +159,24 @@ def parse_test_title(full_title):
             key_params.append('Offset 1')
         elif offset == '31':
             key_params.append('Offset 31')
-    
+
     # Extract returned size
     returned_size_match = re.search(r'returned_size_(\d+)', full_title)
     if returned_size_match and len(parts) < 4:
         size = returned_size_match.group(1)
         key_params.append(f'Ret Size: {size}')
-    
+
     # Extract log operation types
     log_match = re.search(r'-(log\d+)', full_title)
     if log_match and len(parts) < 4:
         parts.append(log_match.group(1).upper())
-    
-    # Extract topic types  
+
+    # Extract topic types
     if 'non_zero_topic' in full_title and len(parts) < 4:
         key_params.append('Non-Zero Topic')
     elif 'zeros_topic' in full_title and len(parts) < 4:
         key_params.append('Zero Topic')
-    
+
     # Create readable title
     if parts:
         readable_title = " | ".join(parts[:4])  # Limit to 4 parts
@@ -188,7 +188,7 @@ def parse_test_title(full_title):
         readable_title = full_title.replace('_', ' ').replace('.py', '')
         if len(readable_title) > 60:
             readable_title = readable_title[:57] + "..."
-    
+
     return readable_title, full_title
 
 
